@@ -1,0 +1,21 @@
+- name: Ensure runner with shell executor is registered
+  hosts: all
+  become: true
+  vars_files:
+    - variables.yaml
+  roles:
+    - role: geerlingguy.docker
+    - role: runner
+      vars:
+        registration_token: "{{ gitlab_registration_token }}"
+        name: "{{ shell_executor_name }}"
+        tags: "{{ shell_executor_tags }}"
+        executor: "shell"
+        docker_image: "null"
+    - role: runner
+      vars:
+        registration_token: "{{ gitlab_registration_token }}"
+        name: "{{ docker_executor_name }}"
+        tags: "{{ docker_executor_tags }}"
+        executor: "docker"
+        docker_image: "alpine:latest"

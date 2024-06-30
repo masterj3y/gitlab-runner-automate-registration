@@ -1,0 +1,39 @@
+- name: Download GitLab runner executable
+  become: true
+  ansible.builtin.get_url:
+    url: https://gitlab-runner-downloads.s3.amazonaws.com/latest/binaries/gitlab-runner-linux-amd64 
+    dest: /usr/local/bin/gitlab-runner
+    mode: 0755
+
+- name: Add GitLab user
+  become: true
+  ansible.builtin.user:
+    name: gitlab-runner
+    comment: "GitLab Runner"
+    shell: /bin/bash
+    create_home: true
+    state: present
+
+- name: Install gitlab-runner
+  become: true
+  ansible.builtin.command: 
+    cmd: gitlab-runner install --user=gitlab-runner --working-directory=/home/gitlab-runner && gitlab-runner start
+    creates: /etc/gitlab-runner/config.toml
+
+- slurp:
+    src: /etc/gitlab-runner/config.toml
+  become: true
+  register: runner_config
+
+- name: Remove .bash_logout file
+  when: runner_config.content | b64decode is not search("{{ name }}")
+  become: true
+  file:
+    path: /home/gitlab-runner/.bash_logout
+    state: absent
+
+- name: Register gitlab runner with {{ executor }} runner
+  become: true
+  when: runner_config.content | b64decode is not search("{{ name }}")
+  ansible.builtin.command:
+    cmd: gitlab-runner register --non-interactive --url "https://gitlab.com/"  --registration-token "{{ registration_token }}" --executor "{{ executor }}" --docker-image "{{ docker_image }}" --description "{{ name }}"  --tag-list "{{ tags }}"
